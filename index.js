@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const ocr = require('./ocr_pb.js');
 
-const url = "https://ocr-middleware-vupmcdtsia-as.a.run.app/";
+const url = "https://<****>.app/";
 const accessKey = process.env.LV_ACCESS_KEY;
 
 const filePath = process.argv[2];
