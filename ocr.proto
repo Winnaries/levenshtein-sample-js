@@ -1,0 +1,169 @@
+syntax = "proto3"; 
+
+import "google/protobuf/timestamp.proto";
+
+package ocr;
+
+// The root structure of the HTTP POST request. 
+message Request {
+    // The unique UUID of the applicaiton. For example, 
+    // a single loan application by a customer is a single application 
+    // and has a unique UUID. This is useful for tracking the 
+    // number of file parsed for an individual application. 
+    //
+    // REMARK: It is your responsibility to make sure this UUID is unique 
+    // across different customer applications for financial services. 
+    string uuid = 1; 
+
+    // The list of documents to be parsed. Since this is a list, 
+    // you can send multiple documents in a single request.
+    repeated Document documents = 2; 
+}
+
+
+message Document {
+    // The unique UUID that can identity the document. Useful for bug reporting. 
+    // If a bank/fintech notice that the output is incorrect, they can use this UUID
+    // to report the issue to the customer service team.
+    string uuid = 1; 
+
+    // The name of the document. For example, "bank statement", "salary slip", "tax return", etc.
+    string name = 2;  
+
+    // The mime type of the document. This can be one of the following:  
+    // `application/pdf` or `image/jpeg` or `image/png`.
+    string mime = 5; 
+
+    // Since some files are password protected, you can send the password here; otherwise, 
+    // you can leave it empty. We will return an error when the password is incorrect.
+    optional string password = 10; 
+
+    // The name of the bank. For example, "HDFC", "ICICI", "SBI", etc.
+    // Useful for hinting the parser to use the correct template.
+    //
+    // REMARK: Not in used for now. Our system support automatic template 
+    // detection and parsing. 
+    optional string bank = 11; 
+
+    // The source of the document. This can be a URL or a file.
+    // By a file, we mean the raw binary content of the file.
+    oneof source {
+        string url = 3; 
+        bytes file = 4; 
+    }
+}
+
+message Response {
+    // The unique UUID of the application. The UUID of the request 
+    // should match the response. 
+    string uuid = 1; 
+
+    // The list of statements parsed from the documents.
+    // Ordering are the same as in the request. 
+    repeated Statement statements = 2; 
+}
+
+message Statement {
+    // The unique UUID of the document. This UUID should match the
+    // UUID of the document in the request.
+    string uuid = 1; 
+
+    // The return status of the parsing.
+    Status status = 2; 
+
+    // Additional information such as name, address, bank account, etc. 
+    Metadata metadata = 3; 
+
+    // The list of transactions parsed from the document.
+    repeated Transaction transactions = 4; 
+}
+
+enum Status {
+    // Parsed successfully.
+    SUCCESS = 0; 
+
+    // The document is corrupted.   
+    FAIL_CORRUPT = 1;
+
+    // The document is not supported.
+    FAIL_UNSUPPORTED = 2;
+
+    // The password is incorrect.
+    FAIL_PASS_INVALID = 3;
+
+    // The quality of the document is low. Blurred, rotated, etc.
+    FAIL_LOW_QUALITY = 4; 
+
+    // The document is empty.
+    FAIL_UNKNOWN = 11;  
+
+    // The source of the document is missing.
+    FAIL_SRC_MISSING = 12; 
+}
+
+message Metadata {
+    // The name of the account holder.
+    string name = 1; 
+
+    // The account number of the account holder.
+    string account = 2; 
+
+    // The name of the bank.
+    string bank = 3; 
+
+    // The address of the account holder.
+    string address = 4; 
+
+    // Any other information not included in the core properties above. 
+    map<string, string> extras = 21;
+}
+
+message Transaction { 
+    // Unix timestamp of the transaction. 
+    //
+    // REMARK: The UNIX timestamp will be released in the next version. 
+    ProbTimestamp timestamp = 1; 
+
+    // The time string of the transaction. Can be different among the bank 
+    // statements. For example, "01/01/2020", "01-01-2020", "01 Jan 2020", etc.
+    // If you need the UNIX timestamp, you can use the `timestamp` field.
+    ProbText timestring = 2; 
+
+    // The remaining balance after the so-called transaction.
+    ProbAmount balance = 3; 
+
+    // The description of the transaction. Can be also different among the bank
+    // statements. For example, "ATM Withdrawal", "NEFT", "IMPS", "Cash Deposit", etc.
+    ProbText description = 11; 
+
+    // Any other columns that are in the bank statement. For example, "Cheque No", "Value Date", 
+    // "Remitter Name", "Remitter IBAN", "Channel", and others can be found here. 
+    map<string, ProbText> extras = 21;  
+    
+    // The amount of the transaction. Either credit or debit.
+    oneof amount {
+        ProbAmount debit = 4; 
+        ProbAmount credit = 5; 
+    }
+}
+
+// The wrapper struct that contains the timestamp and 
+// the confidence of the parsed value.
+message ProbTimestamp {
+    google.protobuf.Timestamp value = 1;
+    float confidence = 2;  
+}
+
+// The wrapper struct that contains the number and 
+// the confidence of the parsed value.
+message ProbAmount {
+    float value = 1; 
+    float confidence = 2; 
+}
+
+// The wrapper struct that contains text and 
+// the confidence of the parsed text.
+message ProbText {
+    string value = 1; 
+    float confidence = 2; 
+}
