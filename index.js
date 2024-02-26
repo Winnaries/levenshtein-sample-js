@@ -33,7 +33,7 @@ async function call_levenshtein() {
     const document = new ocr.Document();
 
     document.setUuid("abcde");
-    document.setName("abhi-sample.pdf");
+    document.setName("statement.pdf");
     document.setMime("application/pdf");
     document.setFile(fileContent);
 
